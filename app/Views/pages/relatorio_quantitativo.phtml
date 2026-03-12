@@ -1,0 +1,470 @@
+<?php
+
+use App\Core\Auth;
+
+// PROTEÇÃO DE ROTA
+Auth::requireLevel(2);
+
+use App\Helpers\DataHelper;
+
+// Garantir que as variáveis existem
+$dadosRelatorio = isset($dadosRelatorio) ? $dadosRelatorio : [];
+$profissionais = isset($profissionais) ? $profissionais : [];
+
+// Filtros Padrão + Novos Filtros
+$filtros = isset($filtros) ? $filtros : [
+    'dt_inicio' => date('Y-m-01'),
+    'dt_fim' => date('Y-m-t'),
+    'id_prof' => '',
+    'origem' => '',
+    'primeiro_at' => '', // Novo
+    'motivo' => ''       // Novo
+];
+
+// Lista de Motivos (Copiada do padrão do sistema)
+
+$motivos_lista_clinica = [
+    ['tipo' => 'header', 'label' => 'Clinica'],
+    ['tipo' => 'option', 'value' => 'Horário adequado', 'label' => 'Horário adequado'],
+    ['tipo' => 'option', 'value' => 'Horario disponível', 'label' => 'Horario disponível'],
+    ['tipo' => 'option', 'value' => 'Indicação de profissional Assista', 'label' => 'Indicação de profissional Assista'],
+    ['tipo' => 'option', 'value' => 'Outro', 'label' => 'Outro']
+];
+
+$motivos_lista_profissional = [
+    ['tipo' => 'header', 'label' => 'Profissional'],
+    ['tipo' => 'option', 'value' => 'Procurou profissional', 'label' => 'Procurou profissional'],
+    ['tipo' => 'option', 'value' => 'Profissional trouxe', 'label' => 'Profissional trouxe'],
+];
+
+// Calcular total
+$totalRegistos = count($dadosRelatorio);
+?>
+
+<!-- ESTILOS EXCLUSIVOS PARA IMPRESSÃO -->
+<style>
+    /* Oculta o cabeçalho de impressão na tela normal */
+    #print-header {
+        display: none;
+    }
+
+    @media print {
+
+        /* Oculta elementos desnecessários do template Admin */
+        #accordionSidebar,
+        #content-wrapper>nav,
+        .btn,
+        form,
+        .card-header,
+        .no-print,
+        footer.sticky-footer,
+        .sidebar,
+        .topbar {
+            display: none !important;
+        }
+
+        /* Ajusta o container para ocupar toda a folha */
+        .container-fluid,
+        .card,
+        .card-body {
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            width: 100% !important;
+        }
+
+        /* Exibe o cabeçalho personalizado de impressão */
+        #print-header {
+            display: block !important;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+        }
+
+        /* Ajustes da Tabela para impressão */
+        .table-responsive {
+            overflow: visible !important;
+            /* Remove rolagem */
+        }
+
+        table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+        }
+
+        th,
+        td {
+            border: 1px solid #000 !important;
+            /* Bordas pretas sólidas */
+            color: #000 !important;
+            /* Texto preto */
+            padding: 5px !important;
+            font-size: 12px !important;
+            /* Fonte menor para caber */
+        }
+
+        /* Remove cores de fundo para economizar tinta */
+        .badge {
+            border: 1px solid #000;
+            color: #000 !important;
+            background: none !important;
+            font-weight: bold;
+        }
+    }
+</style>
+
+<div class="container-fluid">
+
+    <!-- CABEÇALHO VISÍVEL APENAS NA IMPRESSÃO -->
+    <div id="print-header">
+        <h2 style="margin:0;">Clínica Assista</h2>
+        <h4 style="margin:5px 0;">Relatório Quantitativo de Pacientes</h4>
+        <p style="margin:0;">
+            <strong>Período:</strong> <?= date('d/m/Y', strtotime($filtros['dt_inicio'])) ?> a <?= date('d/m/Y', strtotime($filtros['dt_fim'])) ?>
+            <span style="margin-left: 20px;"><strong>Gerado em:</strong> <?= date('d/m/Y H:i') ?></span>
+        </p>
+        <?php if (!empty($filtros['origem'])): ?>
+            <p style="margin:0;"><strong>Filtro Origem:</strong> <?= $filtros['origem'] ?></p>
+        <?php endif; ?>
+    </div>
+
+
+    <!-- Cabeçalho da Página (Tela) -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-2 no-print">
+        <h2 class="mb-2 text-gray-600">Relatório Quantitativo</h2>
+
+        <!-- Botões de Ação -->
+        <div>
+            <a href="<?= defined('URL_BASE') ? URL_BASE : '' ?>/relatorios/quantitativo" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm me-2">
+                <i class="fas fa-undo fa-sm text-white-50 me-1"></i> Limpar
+            </a>
+            <button onclick="window.print()" class="d-none d-sm-inline-block btn btn-sm btn-success shadow-sm">
+                <i class="fas fa-print fa-sm text-white-50"></i> Imprimir
+            </button>
+        </div>
+    </div>
+
+    <!-- Card de Filtros -->
+    <div class="card shadow mb-4 no-print">
+        <div class="card-header py-3 text-white">
+            <h6 class="m-0 fw-bold">
+                <i class="fas fa-filter me-1"></i> Filtros de Pesquisa
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="<?= URL_BASE ?>/relatorios/quantitativo" class="row g-3 align-items-end">
+
+                <!-- Data Início -->
+                <div class="row">
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">Data Início</label>
+                        <input type="date" name="dt_inicio" class="form-control form-control-sm" value="<?= $filtros['dt_inicio'] ?>">
+                    </div>
+
+                    <!-- Data Fim -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">Data Fim</label>
+                        <input type="date" name="dt_fim" class="form-control form-control-sm" value="<?= $filtros['dt_fim'] ?>">
+                    </div>
+
+                    <!-- Profissional -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">Profissional</label>
+                        <select name="id_prof" class="form-select form-select-sm">
+                            <option value="">Todos</option>
+                            <?php foreach ($profissionais as $prof): ?>
+                                <option value="<?= $prof['id'] ?>" <?= ($filtros['id_prof'] == $prof['id']) ? 'selected' : '' ?>>
+                                    <?= $prof['nome'] ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <!-- Origem -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">Origem</label>
+                        <select name="origem" class="form-select form-select-sm">
+                            <option value="">Todas</option>
+                            <option value="Organico" <?= ($filtros['origem'] == 'Organico') ? 'selected' : '' ?>>Orgânico</option>
+                            <option value="Marketing" <?= ($filtros['origem'] == 'Marketing') ? 'selected' : '' ?>>Marketing</option>
+                            <option value="Sistema" <?= ($filtros['origem'] == 'Sistema') ? 'selected' : '' ?>>Sistema (Antigo)</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="row"></div>
+                <!-- NOVO FILTRO: Primeiro Atendimento -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small">1º Atendimento</label>
+                    <select name="primeiro_at" id="primeiro_at" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        <option value="1" <?= ($filtros['primeiro_at'] === '1') ? 'selected' : '' ?>>Sim</option>
+                        <option value="0" <?= ($filtros['primeiro_at'] === '0') ? 'selected' : '' ?>>Não</option>
+                        <option value="2" <?= ($filtros['primeiro_at'] === '2') ? 'selected' : '' ?>>Retorno</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small">Orgim do Agendamento</label>
+                    <select name="origem_ag" id="origem_ag" class="form-select form-select-sm" disabled>
+                        <option value="">Todos</option>
+                        <option value="Clinica" <?= ($filtros['origem'] == 'Clinica') ? 'selected' : '' ?>>Clínica</option>
+                        <option value="ProfissionalClinica" <?= ($filtros['origem'] == 'ProfissionalClinica') ? 'selected' : '' ?>>Profissional</option>
+                    </select>
+                </div>
+
+                <!-- NOVO FILTRO: Motivo -->
+                <div class="col-md-2">
+                    <label class="form-label fw-bold small">Motivo</label>
+                    <select name="motivo" id="motivo" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        <!-- O PHP preenche o inicial, mas o JS vai manipular isso -->
+                        <?php foreach ($motivos_padrao_php as $item):
+                            if ($item['tipo'] === 'option'):
+                        ?>
+                                <option value="<?= $item['value'] ?>" <?= ($filtros['motivo'] == $item['value']) ? 'selected' : '' ?>>
+                                    <?= $item['label'] ?>
+                                </option>
+                        <?php endif;
+                        endforeach; ?>
+                    </select>
+                </div>
+
+                <!-- Botão Filtrar -->
+                <div class="col-md-12 text-end mt-3">
+                    <button type="submit" class="btn btn-primary btn-sm px-4">
+                        <i class="fas fa-search me-1"></i> Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Resultados -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center no-print">
+            <h6 class="m-0 fw-bold text-success">
+                <i class="fas fa-check-circle me-1"></i> Resultados Encontrados: <?= $totalRegistos ?> pessoas
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover table-striped" width="100%" cellspacing="0">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th>Nome do Paciente</th>
+                            <th class="text-center">Origem</th>
+                            <th class="text-center">Profissional</th>
+                            <!-- Novas Colunas no Cabeçalho -->
+                            <th class="text-center">1º Atend.</th>
+                            <th class="text-center">Motivo</th>
+                            <!-- Fim Novas Colunas -->
+                            <th class="text-center">Tempo (Dias)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($dadosRelatorio)): ?>
+                            <?php foreach ($dadosRelatorio as $row): ?>
+                                <tr>
+                                    <td class="text-secondary"><?= htmlspecialchars($row['paciente']) ?></td>
+                                    <td class="text-center fw-bold">
+                                        <?php if ($row['origem'] == 'Organico'): ?>
+                                            <span class="badge bg-success">Orgânico</span>
+                                        <?php elseif ($row['origem'] == 'Marketing'): ?>
+                                            <span class="badge bg-info text-dark">Marketing</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary"><?= $row['origem'] ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-left">
+                                        <span class="text-success"> <?= $row['prof_nome'] ?> </span>
+                                    </td>
+                                    <!-- Coluna 1º Atendimento -->
+                                    <td class="text-center">
+                                        <?php if (isset($row['primeiro_at']) && $row['primeiro_at'] == 1): ?>
+                                            <span class="text-success fw-bold"><i class="fas fa-check"></i> Sim</span>
+                                        <?php elseif (isset($row['primeiro_at']) && $row['primeiro_at'] == 2): ?>
+                                            <span class="text-muted small">Retorno</span>
+                                        <?php else: ?>
+                                            <span class="text-muted small">Não</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <!-- Coluna Motivo -->
+                                    <td>
+                                        <?php
+                                        // Exibe o label amigável ou o valor raw
+                                        $motivoKey = $row['motivo'] ?? '';
+                                        $mot = isset($motivos_lista[$motivoKey]) ? $motivos_lista[$motivoKey] : $motivoKey;
+                                        echo $mot != 'Outro' ? $mot : $row['outro'];
+                                        ?>
+                                    </td>
+
+                                    <td class="text-left"><?= DataHelper::calcularTempoCadastro($row['datacad'] ?? null) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <div class="mb-3 no-print">
+                                        <i class="fas fa-search fa-3x opacity-25"></i>
+                                    </div>
+                                    <h6 class="fw-bold">Nenhum registro encontrado</h6>
+                                    <p class="small mb-0 no-print">Tente ajustar os filtros.</p>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                    <?php if (!empty($dadosRelatorio)): ?>
+                        <tfoot class="table-secondary">
+                            <tr>
+                                <td colspan="5" class="text-end text-success fw-bold">Total de Pacientes Únicos:</td>
+                                <td class="text-center text-success fw-bold"><?= $totalRegistos ?></td>
+                            </tr>
+                        </tfoot>
+                    <?php endif; ?>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lógica JavaScript para os Filtros Dinâmicos -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // IDs
+        const selPrimeiroAt = document.getElementById('primeiro_at');
+        const selOrigem = document.getElementById('origem_ag');
+        const selMotivo = document.getElementById('motivo');
+
+        // Dados do PHP convertidos para JSON
+        const listaClinica = <?= json_encode($motivos_lista_clinica) ?>;
+        const listaProfissional = <?= json_encode($motivos_lista_profissional) ?>;
+
+        // Valor atual do motivo selecionado (para manter seleção após recarregar)
+        // Usamos json_encode para garantir que caracteres especiais não quebrem o JS
+        const motivoSelecionado = <?= json_encode($filtros['motivo']) ?>;
+
+        // 1. Função para controlar o Select de Origem
+        function toggleOrigem() {
+            if (selPrimeiroAt.value === '1') {
+                selOrigem.disabled = false;
+            } else {
+                selOrigem.disabled = true;
+                // Não limpamos o valor aqui imediatamente para evitar perda visual ao filtrar
+                // Se a origem estiver desabilitada, o motivo também fica.
+            }
+        }
+
+        // 2. Função para popular o Motivo
+        function carregarOpcoesMotivo(lista) {
+            // Limpa opções atuais
+            selMotivo.innerHTML = '<option value="">Todos</option>';
+
+            let encontrouSelecionado = false;
+
+            lista.forEach(item => {
+                const opt = document.createElement('option');
+                if (item.tipo === 'header') {
+                    opt.disabled = true;
+                    opt.textContent = item.label;
+                    opt.style.backgroundColor = '#ebebeb';
+                    opt.style.color = '#0dcaf0';
+                    opt.style.fontWeight = '600';
+                } else {
+                    opt.value = item.value;
+                    opt.textContent = item.label;
+
+                    // Compara valor string com string
+                    if (motivoSelecionado && item.value == motivoSelecionado) {
+                        opt.selected = true;
+                        encontrouSelecionado = true;
+                    }
+                }
+                selMotivo.appendChild(opt);
+            });
+
+            // FALLBACK: Se temos um motivo selecionado mas ele não está na lista carregada
+            // (ex: era de outra categoria ou valor antigo), adicionamos ele para não sumir do filtro visualmente.
+            if (motivoSelecionado && !encontrouSelecionado) {
+                const optFallback = document.createElement('option');
+                optFallback.value = motivoSelecionado;
+                optFallback.textContent = motivoSelecionado + ' (Salvo/Outro)';
+                optFallback.selected = true;
+                selMotivo.appendChild(optFallback);
+            }
+        }
+
+        // 3. Função para controlar o Select de Motivo
+        function toggleMotivo() {
+            const origemVal = selOrigem.value;
+
+            // Só habilita o motivo se a origem estiver habilitada E tiver um valor válido
+            if (selOrigem.disabled) {
+                selMotivo.disabled = true;
+                return;
+            }
+
+            if (origemVal === 'Clinica') {
+                selMotivo.disabled = false;
+                carregarOpcoesMotivo(listaClinica);
+            } else if (origemVal === 'ProfissionalClinica') {
+                selMotivo.disabled = false;
+                carregarOpcoesMotivo(listaProfissional);
+            } else {
+                // Se não for nenhuma das opções que ativam a lista, desabilita
+                // Mas se tiver valor selecionado (ex: filtrando por outra origem), pode manter visualmente
+                selMotivo.disabled = true;
+                selMotivo.innerHTML = '<option value="">Todos</option>';
+            }
+        }
+
+        // Event Listeners
+        if (selPrimeiroAt && selOrigem && selMotivo) {
+
+            selPrimeiroAt.addEventListener('change', () => {
+                toggleOrigem();
+                // Se ao mudar o 1º Atend a origem ficar desabilitada, limpa visualmente
+                if (selOrigem.disabled) {
+                    selOrigem.value = '';
+                    selMotivo.value = '';
+                    selMotivo.disabled = true;
+                } else {
+                    // Se habilitou, verifica se precisa disparar lógica de motivo
+                    toggleMotivo();
+                }
+            });
+
+            selOrigem.addEventListener('change', toggleMotivo);
+
+            // --- INICIALIZAÇÃO ROBUSTA (Ao Carregar a Página) ---
+
+            // 1. Aplica estado do Origem baseado no valor atual
+            if (selPrimeiroAt.value === '1') {
+                selOrigem.disabled = false;
+            } else {
+                selOrigem.disabled = true;
+            }
+
+            // 2. Aplica estado do Motivo baseado no valor atual do Origem
+            // Importante: Verificamos se origem está habilitada antes de carregar lista
+            if (!selOrigem.disabled) {
+                if (selOrigem.value === 'Clinica') {
+                    selMotivo.disabled = false;
+                    carregarOpcoesMotivo(listaClinica);
+                } else if (selOrigem.value === 'ProfissionalClinica') {
+                    selMotivo.disabled = false;
+                    carregarOpcoesMotivo(listaProfissional);
+                } else {
+                    // Se não for categoria especial, mas tem motivo selecionado, mantém (apenas exibe)
+                    // ou desabilita se a lógica exigir.
+                    selMotivo.disabled = true;
+                }
+            } else {
+                selMotivo.disabled = true;
+            }
+        }
+    });
+</script>

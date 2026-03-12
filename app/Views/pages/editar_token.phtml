@@ -1,0 +1,658 @@
+<?php
+// app/views/pages/editar_token.phtml 
+
+$origem = $token['origem'] ?? 'Sistema';
+$telefone = $token['telefone'] ?? '';
+$cpf = $token['cpf'] ?? '';
+$respFin = $token['responsavel_f'] ?? $token['responsavel_financeiro'] ?? '';
+
+// --- TRATAMENTO DE DADOS ---
+
+// 1. Modalidade: Remove espaços
+$val_modalidade = isset($token['modalidade']) ? trim($token['modalidade']) : '';
+
+// 2. Motivo: Tenta ler 'motivo_ag' (novo padrão) ou 'motivo' (antigo)
+$val_motivo_raw = $token['motivo_ag'] ?? '';
+$val_motivo = trim($val_motivo_raw);
+
+// 3. Primeiro Atendimento: Tenta ler 'primeiro_at'
+$val_primeiro_at = $token['primeiro_at'] ?? 0;
+
+$val_primeiro_at = $token['primeiro_at'] ?? 0;
+
+
+// 4. Outro:
+$val_outro = $token['outro'] ?? '';
+
+// Verifica se é "outro" para o PHP já renderizar aberto se necessário
+$is_outro = (strtolower($val_motivo) === 'outro');
+
+// LISTAS
+$motivos_lista = [
+    // GRUPO CLINICA
+    ['tipo' => 'header', 'label' => 'Clinica'],
+    ['tipo' => 'option', 'value' => 'Horário adequado', 'label' => 'Horário adequado'],
+    ['tipo' => 'option', 'value' => 'Horario disponível', 'label' => 'Horario disponível'],
+    ['tipo' => 'option', 'value' => 'Indicação de profissional Assista', 'label' => 'Indicação de profissional Assista'],
+    ['tipo' => 'option', 'value' => 'Outro', 'label' => 'Outro'],
+
+    // GRUPO PROFISSIONAL
+    ['tipo' => 'header', 'label' => 'Profissional'],
+    ['tipo' => 'option', 'value' => 'Procurou profissional', 'label' => 'Procurou profissional'],
+    ['tipo' => 'option', 'value' => 'Profissional trouxe', 'label' => 'Profissional trouxe'],
+    ['tipo' => 'option', 'value' => 'Retornou ao profissional', 'label' => 'Retornou ao profissional']
+];
+
+$modalidades_lista = [
+    'Avaliação T' => 'Avaliação Terapia (Psicologia / Terapia Casal / TO)',
+    'Avaliação F' => 'Avaliação Fono',
+    'Avaliação N' => 'Avaliação Neuropsicológica',
+    'Visita E' => 'Visita Escolar',
+    'Proase' => 'Proase',
+    'Plano Mensal' => 'Plano Mensal',
+    'Consulta Psiquiatra' => 'Consulta Psiquiatra',
+    'Consulta Nutrição' => 'Consulta Nutrição'
+];
+?>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="mb-2 text-gray-600">Editar Token</h2>
+        <a href="<?= URL_BASE ?>/home" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Voltar
+        </a>
+    </div>
+
+    <form action="<?= URL_BASE ?>/token/atualizar" method="POST" autocomplete="off">
+        <input type="hidden" name="id_token" value="<?= $token['id_token'] ?>">
+        <input type="hidden" name="hiddenInputId" id="id_paciente" value="<?= $token['id_paciente'] ?? '' ?>">
+        <input type="hidden" name="origem" id="hiddenOrigem" value="<?= htmlspecialchars($origem) ?>">
+
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 fw-bold text-primary">Dados do Token #<?= $token['id_token'] ?></h6>
+            </div>
+            <div class="card-body">
+
+                <!-- 1. Identificação -->
+                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">1. Identificação</h6>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold" for="id_prof">Profissional <span class="text-danger">*</span></label>
+                        <select class="form-select" name="id_prof" id="id_prof" required>
+                            <?php foreach ($profissionais as $p): ?>
+                                <option value="<?= $p['id'] ?>" <?= ($token['id_prof'] == $p['id']) ? 'selected' : '' ?> data-porcentagem="<?= $p['porcentagem'] ?>">
+                                    <?= $p['nome'] ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mb-3 position-relative">
+                        <label class="form-label fw-bold" for="inputBusca">Paciente</label>
+                        <input type="text" class="form-control" name="nome_paciente" id="inputBusca"
+                            value="<?= $token['paciente'] ?>" placeholder="Digite o nome para buscar..." required autocomplete="off">
+                        <small id="statusBusca" class="form-text text-muted"></small>
+                        <div id="listaSugestoes" class="list-group position-absolute w-100 shadow" style="z-index: 1000; display:none;"></div>
+                        <small class="text-muted" style="font-size: 0.75rem;">* Ao alterar o nome manualmente, o vínculo com o cadastro será removido.</small>
+                    </div>
+                </div>
+
+
+
+
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold" for="displayCpf">CPF</label>
+                        <input type="text" class="form-control" name="cpf_paciente" id="displayCpf" value="<?= $cpf ?>">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold" for="displayTelefone">Telefone</label>
+                        <input type="text" class="form-control" name="telefone_paciente" id="displayTelefone" value="<?= $telefone ?>">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold" for="displayResponsavel">Nome Responsável</label>
+                        <input type="text" class="form-control" name="nome_responsavel" id="displayResponsavel" value="<?= $token['nome_resp'] ?? '' ?>">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold" for="displayFinanceiro">Resp. Financeiro</label>
+                        <input type="text" class="form-control" name="responsavel_financeiro" id="displayFinanceiro" value="<?= $respFin ?>">
+                    </div>
+                </div>
+
+                <!-- 2. Pagamento -->
+                <h6 class="text-primary fw-bold mb-3 mt-4 border-bottom pb-2">2. Pagamento e Detalhes</h6>
+                <div class="row">
+
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold" for="modalidade">Modalidade</label>
+                        <select class="form-select" name="modalidade" id="modalidade" required>
+                            <option value="">Selecione...</option>
+
+                            <?php
+                            foreach ($modalidades_lista as $valor => $rotulo):
+                                $selected = ($val_modalidade == $valor) ? 'selected' : '';
+                            ?>
+                                <option value="<?= $valor ?>" <?= $selected ?>><?= $rotulo ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold" for="nome_banco">Banco</label>
+                        <select class="form-select" name="nome_banco" id="nome_banco">
+                            <option value="">Selecione...</option>
+                            <?php
+                            $bancos = ['Itau' => 'Banco Itau', 'Bradesco' => 'Banco Bradesco'];
+                            foreach ($bancos as $valor => $rotulo):
+                                $selected = ($token['nome_banco'] == $valor) ? 'selected' : '';
+                            ?>
+                                <option value="<?= $valor ?>" <?= $selected ?>><?= $rotulo ?></option>
+                            <?php endforeach; ?>
+                            <?php if (!empty($token['nome_banco']) && !array_key_exists($token['nome_banco'], $bancos)): ?>
+                                <option value="<?= $token['nome_banco'] ?>" selected><?= $token['nome_banco'] ?></option>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold" for="formapag">Forma de Pagamento</label>
+                        <select class="form-select" name="formapag" required>
+                            <?php
+                            $formas = ['Crédito', 'Débito', 'Espécie', 'Pix', 'Pix / Qrcode'];
+                            foreach ($formas as $f):
+                            ?>
+                                <option value="<?= $f ?>" <?= ($token['formapag'] == $f) ? 'selected' : '' ?>><?= $f ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                </div>
+
+                <!-- SEÇÃO CRÍTICA: MOTIVO E PRIMEIRO ATENDIMENTO -->
+                <div class="row">
+
+                    <div class="col-md-5 mb-2">
+                        <label class="form-label fw-bold">Primeiro atendimento</label>
+                        <div class="d-flex align-items-center">
+
+                            <div class="form-check form-check-inline me-4">
+                                <input class="form-check-input" type="radio"
+                                    name="primeiro_at" value="1" id="sim"
+                                    <?= ((int)$val_primeiro_at === 1) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="sim">
+                                    <i class="fa fa-check"></i> Sim
+                                </label>
+                            </div>
+
+                            <div class="form-check form-check-inline me-4">
+                                <input class="form-check-input" type="radio"
+                                    name="primeiro_at" value="0" id="nao"
+                                    <?= ((int)$val_primeiro_at === 0) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="nao">
+                                    <i class="fa-solid fa-not-equal"></i> Não
+                                </label>
+                            </div>
+
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio"
+                                    name="primeiro_at" value="2" id="retorno"
+                                    <?= ((int)$val_primeiro_at === 2) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="retorno">
+                                    <i class="fa-solid fa-repeat"></i> Retorno
+                                </label>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="col-md-5 mb-2">
+                        <label class="form-label text-secondary" for="motivo_agendamento">Motivo Agendamento</label>
+                        <!-- IMPORTANTE: name="motivo_ag" e id="motivo_agendamento" -->
+                        <select class="form-select" name="motivo_ag" id="motivo_agendamento" required <?= ($val_primeiro_at == 0) ? 'disabled' : '' ?>>
+                            <option value="">Selecione...</option>
+                            <?php
+                            $encontrou_motivo = false;
+                            foreach ($motivos_lista as $item):
+                                // Se for cabeçalho
+                                if ($item['tipo'] === 'header'):
+                            ?>
+                                    <option value="" disabled style="background-color: #ebebeb; color:#0dcaf0; font-weight: 600;">
+                                        <?= $item['label'] ?>
+                                    </option>
+                                <?php
+                                // Se for opção normal
+                                else:
+                                    $is_selected = ($val_motivo == $item['value']);
+                                    if ($is_selected) $encontrou_motivo = true;
+                                ?>
+                                    <option value="<?= $item['value'] ?>" <?= $is_selected ? 'selected' : '' ?>>
+                                        <?= $item['label'] ?>
+                                    </option>
+                            <?php
+                                endif;
+                            endforeach;
+                            ?>
+
+                            <!-- Fallback: Se o motivo salvo não estiver na lista (legado), mostra ele -->
+                            <?php if (!empty($val_motivo) && !$encontrou_motivo): ?>
+                                <option value="<?= htmlspecialchars($val_motivo) ?>" selected>
+                                    <?= htmlspecialchars($val_motivo) ?> (Salvo Anteriormente)
+                                </option>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+
+                    <!-- PORCENTAGEM (Adicionado ID e lógica de seleção) -->
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label fw-bold" for="porcentagem">(%)</label>
+                        <!-- O PHP preenche o value, mas o JS vai controlar o readonly -->
+                        <select name="porcentagem" id="porcentagem" class="form-select" disabled readonly>
+                            <?php
+                            $valores_pct = ['00.00', '65.00', '70.00', '75.00', '80.00', '85.00', '90.00', '92.00', '95.00', '100.00'];
+                            $pct_atual = isset($token['porcentagem']) ? number_format($token['porcentagem'], 2, '.', '') : '100.00';
+
+                            foreach ($valores_pct as $v) {
+                                $sel = ($v === $pct_atual) ? 'selected' : '';
+                                $label = ($v == '100.00') ? '100%' : number_format($v, 0) . '%';
+                                echo "<option value='{$v}' {$sel}>{$label}</option>";
+                            }
+                            ?>
+                        </select>
+                        <!-- <small class="form-text text-muted">A porcentagem é vinculada ao profissional, exceto em "Avaliação T".</small> -->
+                        <input type="hidden" name="porcentagem" id="hiddenPorcentagem">
+                    </div>
+                </div>
+
+                <!-- Container do campo Outro -->
+                <div class="row">
+                    <div class="col-md-12 mb-3" id="container_outro" style="<?= $is_outro ? 'display: block;' : 'display: none;' ?>">
+                        <label class="form-label mb-0">Outro (Descreva)</label>
+                        <input type="<?= $is_outro ? 'text' : 'hidden' ?>"
+                            class="form-control" id="outro" name="outro"
+                            value="<?= htmlspecialchars($val_outro) ?>"
+                            <?= $is_outro ? 'required' : '' ?>>
+                    </div>
+                </div>
+
+                <div id="bg-adm" class="row align-items-end bg-light-adm p-2">
+
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label fw-bold text-success">Valor (R$)</label>
+                        <input type="text" class="form-control fw-bold border-success" name="valor" id="valor"
+                            value="<?= number_format($token['valor'] ?? 0, 2, ',', '.') ?>" required>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label fw-bold">Vencimento</label>
+                        <input type="date" class="form-control" name="vencimento"
+                            value="<?= $token['vencimento'] ?? '' ?>">
+                    </div>
+
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label d-block fw-bold text-muted small text-uppercase mb-2">Origem do Paciente</label>
+                        <div class="d-flex align-items-center">
+                            <div class="form-check form-check-inline me-4">
+                                <input class="form-check-input" type="radio" name="origem_visual" value="Organico" id="origem_organico" disabled
+                                    <?= ($origem == 'Organico') ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="origem_organico">
+                                    <i class="fas fa-leaf text-success me-1"></i> Orgânico
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="origem_visual" value="Marketing" id="origem_marketing" disabled
+                                    <?= ($origem == 'Marketing') ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="origem_marketing">
+                                    <i class="fas fa-bullhorn text-info me-1"></i> Marketing
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-12 mb-2">
+                    <label for="obs" class="form-label fw-bold">Observações</label>
+                    <textarea class="form-control" id="obs" name="obs" rows="2"><?= htmlspecialchars($token['obs'] ?? '') ?></textarea>
+                </div>
+
+                <!-- 3. Sessões -->
+                <h6 class="text-primary fw-bold mb-3 mt-4 border-bottom pb-2">3. Sessões / Agendamentos</h6>
+
+                <div id="container_sessoes">
+                    <?php if (isset($sessoes) && count($sessoes) > 0): ?>
+                        <?php foreach ($sessoes as $idx => $sessao): ?>
+                            <div class="row mb-2 sessao-item align-items-end">
+                                <div class="col-md-4">
+                                    <label class="small text-muted">Data da Sessão</label>
+                                    <input type="date" name="sessoes[<?= $idx ?>][data]" class="form-control" value="<?= $sessao['data_sessao'] ?>" required>
+                                </div>
+                                <div class="col-md-1">
+                                    <label class="small text-muted d-block">&nbsp;</label>
+                                    <button type="button" class="btn btn-outline-danger btn-sm w-100 btn-remove-sessao" tabindex="-1">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
+                <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="btn_add_sessao">
+                    <i class="fas fa-plus me-1"></i> Adicionar Sessão
+                </button>
+
+            </div>
+            <div class="card-footer text-end">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save me-1"></i> Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // 1. Pegamos os elementos do HTML
+        const selectProfissional = document.getElementById('id_prof');
+        const selectModalidade = document.getElementById('modalidade');
+        const selectPorcentagem = document.getElementById('porcentagem');
+        const hiddenPorcentagem = document.getElementById('hiddenPorcentagem');
+
+        // --- FUNÇÃO DE SEGURANÇA (ANTI-BURLA) ---
+        // Esta função lê o profissional atual e força a porcentagem dele no campo
+        function forcarPorcentagemPadrao() {
+            if (!selectProfissional) return; // Segurança extra
+
+            const opcaoSelecionada = selectProfissional.options[selectProfissional.selectedIndex];
+            // Verifica se existe opção selecionada para evitar erro
+            if (opcaoSelecionada) {
+                const porcentagemPadrao = opcaoSelecionada.getAttribute('data-porcentagem');
+
+                if (porcentagemPadrao) {
+                    // Se for Avaliação T, libera para edição manual
+                    if (selectPorcentagem) selectPorcentagem.value = porcentagemPadrao;
+                    if (hiddenPorcentagem) hiddenPorcentagem.value = porcentagemPadrao;
+                } else {
+                    // Se for qualquer outra modalidade:
+                    if (selectPorcentagem) selectPorcentagem.value = "100.00";
+                    if (hiddenPorcentagem) hiddenPorcentagem.value = "100.00";
+                }
+            }
+        }
+
+        // 2. Evento: Quando muda o Profissional
+        if (selectProfissional) {
+            selectProfissional.addEventListener('change', function() {
+                forcarPorcentagemPadrao();
+            });
+        }
+
+        // 3. Evento: Quando muda a Modalidade
+        if (selectModalidade) {
+            selectModalidade.addEventListener('change', function() {
+
+                // CASO 1: Avaliação T
+                if (this.value === "Avaliação N") {
+                    if (selectPorcentagem) selectPorcentagem.value = "65.00";
+                    if (hiddenPorcentagem) hiddenPorcentagem.value = "65.00";
+
+                    // CASO 2: Consulta Psiquiatra (NOVO)
+                } else if (this.value === "Consulta Psiquiatra") {
+                    if (selectPorcentagem) selectPorcentagem.value = "92.00";
+                    if (hiddenPorcentagem) hiddenPorcentagem.value = "92.00";
+
+                    // CASO 3: Qualquer outra coisa -> Volta para o padrão do profissional
+                } else {
+                    forcarPorcentagemPadrao();
+                }
+            });
+        }
+
+        // Pega todos os inputs de rádio com name="primeiro_at"
+        const radios = document.querySelectorAll('input[name="primeiro_at"]');
+
+        // Adiciona o gatilho de mudança em cada um deles
+        radios.forEach(radio => {
+            radio.addEventListener('change', verificarOpcaoRetornoEdit);
+        });
+
+        // Roda a função imediatamente ao carregar a página
+        // (Isso ajusta o select baseado no que veio do Banco de Dados)
+        verificarOpcaoRetornoEdit();
+        // --- Elementos DOM ---
+        const inputBusca = document.getElementById('inputBusca');
+        const listaSugestoes = document.getElementById('listaSugestoes');
+        const hiddenInputId = document.getElementById('id_paciente');
+        const statusBusca = document.getElementById('statusBusca');
+        const hiddenOrigem = document.getElementById('hiddenOrigem');
+        const displayCpf = document.getElementById('displayCpf');
+        const displayTelefone = document.getElementById('displayTelefone');
+        const displayResponsavel = document.getElementById('displayResponsavel');
+        const displayFinanceiro = document.getElementById('displayFinanceiro');
+        const radioOrganico = document.getElementById('origem_organico');
+        const radioMarketing = document.getElementById('origem_marketing');
+        const containerSessoes = document.getElementById('container_sessoes');
+        const btnAdd = document.getElementById('btn_add_sessao');
+
+        // ======================================================
+        // 1. LÓGICA DO CAMPO OUTRO (MOTIVO) - Corrigida e Verificada
+        // ======================================================
+        const selectMotivo = document.getElementById('motivo_agendamento');
+        const inputOutro = document.getElementById('outro');
+        const containerOutro = document.getElementById('container_outro');
+        const divWrapperOutro = containerOutro || (inputOutro ? inputOutro.closest('.col-md-12') : null);
+
+        if (selectMotivo && inputOutro && divWrapperOutro) {
+
+            function toggleOutro() {
+                const valor = selectMotivo.value.toLowerCase();
+                if (valor === 'outro') {
+                    // SELECIONOU OUTRO
+                    inputOutro.type = 'text';
+                    divWrapperOutro.style.display = 'block';
+                    inputOutro.setAttribute('required', 'required');
+                } else {
+                    // SELECIONOU OUTRA OPÇÃO
+                    inputOutro.type = 'hidden';
+                    divWrapperOutro.style.display = 'none';
+                    inputOutro.removeAttribute('required');
+                }
+            }
+
+            // Escuta mudança
+            selectMotivo.addEventListener('change', toggleOutro);
+
+            // Executa ao carregar para garantir o estado
+            toggleOutro();
+        }
+
+        // ======================================================
+        // 2. LÓGICA PRIMEIRO ATENDIMENTO
+        // ======================================================
+        const radioSim = document.getElementById('sim');
+        const radioNao = document.getElementById('nao');
+
+        function togglePrimeiroAtendimento() {
+            if (radioSim && radioSim.checked) {
+                // Se SIM, habilita
+                selectMotivo.disabled = false;
+            } else {
+                // Se NÃO, desabilita
+                selectMotivo.disabled = true;
+                selectMotivo.value = ''; // <--- LIMPA O VALOR
+
+                // Dispara o evento change para garantir que, se "Outro" estava selecionado,
+                // o campo de texto suma da tela ao marcar "Não".
+                selectMotivo.dispatchEvent(new Event('change'));
+            }
+        }
+
+        if (radioSim && radioNao && selectMotivo) {
+            radioSim.addEventListener('change', togglePrimeiroAtendimento);
+            radioNao.addEventListener('change', togglePrimeiroAtendimento);
+            // Estado inicial já vem definido pelo PHP, mas o JS reforça se houver interação
+        }
+
+        // --- Scripts de Autocomplete e Outros ---
+        inputBusca.addEventListener('input', function() {
+            hiddenInputId.value = '';
+            const termo = this.value;
+            if (termo.length < 3) {
+                listaSugestoes.style.display = 'none';
+                return;
+            }
+
+            fetch('<?= URL_BASE ?>/api/pacientes/busca?term=' + encodeURIComponent(termo))
+                .then(r => r.json())
+                .then(data => {
+                    listaSugestoes.innerHTML = '';
+                    if (data.length > 0) {
+                        listaSugestoes.style.display = 'block';
+                        data.forEach(paciente => {
+                            const item = document.createElement('a');
+                            item.classList.add('list-group-item', 'list-group-item-action', 'cursor-pointer');
+                            item.innerHTML = `<strong>${paciente.nome}</strong> <br> <small class="text-muted">CPF: ${paciente.cpf || 'N/A'}</small>`;
+
+                            item.addEventListener('click', function() {
+                                inputBusca.value = paciente.nome;
+                                hiddenInputId.value = paciente.id;
+                                displayCpf.value = paciente.cpf || '';
+                                displayTelefone.value = paciente.telefone || '';
+                                displayResponsavel.value = paciente.nome_responsavel || '';
+                                displayFinanceiro.value = paciente.responsavel_financeiro || '';
+
+                                radioOrganico.checked = false;
+                                radioMarketing.checked = false;
+
+                                if (paciente.origem) {
+                                    hiddenOrigem.value = paciente.origem;
+                                    if (paciente.origem === 'Organico') radioOrganico.checked = true;
+                                    else if (paciente.origem === 'Marketing') radioMarketing.checked = true;
+                                } else {
+                                    hiddenOrigem.value = 'Sistema';
+                                }
+                                listaSugestoes.style.display = 'none';
+                            });
+                            listaSugestoes.appendChild(item);
+                        });
+                    } else {
+                        listaSugestoes.style.display = 'none';
+                    }
+                })
+                .catch(err => console.error(err));
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!inputBusca.contains(e.target) && !listaSugestoes.contains(e.target)) {
+                listaSugestoes.style.display = 'none';
+            }
+        });
+
+        const valorInput = document.getElementById('valor');
+        if (valorInput) {
+            valorInput.addEventListener('input', e => {
+                let v = e.target.value.replace(/\D/g, '');
+                v = (v / 100).toFixed(2) + '';
+                v = v.replace(".", ",").replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+                e.target.value = v;
+            });
+        }
+
+        let contador = <?= isset($sessoes) ? count($sessoes) : 0 ?>;
+        if (btnAdd && containerSessoes) {
+            btnAdd.addEventListener('click', function() {
+                contador++;
+                const div = document.createElement('div');
+                div.className = 'row mb-2 sessao-item align-items-end fade-in';
+                div.innerHTML = `
+                    <div class="col-md-4">
+                        <label class="small text-muted">Data da Sessão</label>
+                        <input type="date" name="sessoes[${contador}][data]" class="form-control" required>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="small text-muted d-block">&nbsp;</label>
+                        <button type="button" class="btn btn-outline-danger btn-sm w-100 btn-remove-sessao" tabindex="-1">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                containerSessoes.appendChild(div);
+            });
+            containerSessoes.addEventListener('click', function(e) {
+                if (e.target.closest('.btn-remove-sessao')) e.target.closest('.sessao-item').remove();
+            });
+        }
+
+    });
+
+    function verificarOpcaoRetornoEdit() {
+        const radioRetorno = document.getElementById('retorno');
+        const selectMotivo =
+            document.getElementById('motivo_agendamento') ||
+            document.getElementById('motivo');
+
+        // Proteção caso elementos não existam
+        if (!radioRetorno || !selectMotivo) return;
+
+        const isRetorno = radioRetorno.checked;
+        const options = selectMotivo.querySelectorAll('option');
+
+        options.forEach(option => {
+            const isTarget = option.value === "Retornou ao profissional";
+            const isHeader =
+                option.value === "" &&
+                option.text.trim() !== "Selecione...";
+
+            if (isRetorno) {
+                // === MODO RETORNO ===
+                if (isTarget) {
+                    option.style.display = '';
+                    option.disabled = false;
+                    option.selected = true;
+                } else {
+                    option.style.display = 'none';
+                    option.disabled = true;
+                }
+            } else {
+                // === MODO NORMAL ===
+                if (isTarget) {
+                    option.style.display = 'none';
+                    option.disabled = true;
+
+                    if (option.selected) {
+                        selectMotivo.value = "";
+                    }
+                } else {
+                    option.style.display = '';
+
+                    if (!isHeader) {
+                        option.disabled = false;
+                    }
+                }
+            }
+        });
+    }
+</script>
+
+<style>
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    .fade-in {
+        animation: fadeIn 0.3s;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>

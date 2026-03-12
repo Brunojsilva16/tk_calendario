@@ -1,0 +1,292 @@
+<?php
+
+use App\Core\Auth;
+// app/views/pages/home.phtml 
+?>
+
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-2">
+        <h2 class="mb-2 text-gray-600">Painel de Controle</h2>
+    </div>
+
+    <?php if (isset($_SESSION['flash_success'])): ?>
+        <div class="alert alert-success alert-dismissible fade show">
+            <?= $_SESSION['flash_success'] ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <?php unset($_SESSION['flash_success']); ?>
+    <?php endif; ?>
+
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="alert alert-success alert-dismissible fade show">
+            <?= $_SESSION['success'];
+            unset($_SESSION['success']); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="alert alert-danger alert-dismissible fade show">
+            <?= $_SESSION['error'];
+            unset($_SESSION['error']); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <!-- Cards de Estatísticas -->
+    <div class="row">
+        <!-- Card Faturamento Mensal -->
+
+        <?php if (Auth::level() > 2): ?>
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Faturamento (Mês)</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">R$ <?= number_format($faturamento_mes, 2, ',', '.') ?></div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-calendar fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Card Faturamento Diário -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-success shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Faturamento (Hoje)</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">R$ <?= number_format($faturamento_hoje, 2, ',', '.') ?></div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Card Tokens Hoje -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Tokens (Hoje)
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800"><?= $atendimentos_hoje ?></div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Total Geral -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-warning shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                    Base Total de Tokens</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800"><?= $total_tokens ?></div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-database fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+<?php endif; ?>
+
+<!-- TABELA DE TokenS -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center bg-white">
+        <h6 class="m-0 fw-bold text-primary">Últimos Tokens</h6>
+        <!-- RESTRIÇÃO: Botão Novo Token apenas para Nível > 1 -->
+        <?php if (Auth::level() > 2): ?>
+            <a href="<?= URL_BASE ?>/gerar-token" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+                <i class="fas fa-plus fa-sm text-white-50"></i> Novo Token
+            </a>
+        <?php endif; ?>
+    </div>
+
+    <div class="card-body">
+
+        <!-- BARRA DE PESQUISA E LIMITE -->
+        <form method="GET" action="<?= URL_BASE ?>/home" class="row g-3 mb-4 align-items-end">
+            <div class="col-md-2 col-6">
+                <label class="form-label small text-muted fw-bold">Mostrar:</label>
+                <select name="limit" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="10" <?= (isset($limit) && $limit == 10) ? 'selected' : '' ?>>10</option>
+                    <option value="25" <?= (isset($limit) && $limit == 25) ? 'selected' : '' ?>>25</option>
+                    <option value="50" <?= (isset($limit) && $limit == 50) ? 'selected' : '' ?>>50</option>
+                    <option value="100" <?= (isset($limit) && $limit == 100) ? 'selected' : '' ?>>100</option>
+                </select>
+            </div>
+
+            <div class="col-md-5 col-12 ms-auto">
+                <label class="form-label small text-muted fw-bold">Pesquisar Paciente / Token / CPF:</label>
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control form-control-sm"
+                        placeholder="Digite para buscar..."
+                        value="<?= htmlspecialchars($search ?? '') ?>">
+                    <button class="btn btn-primary btn-sm" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <?php if (!empty($search)): ?>
+                        <a href="<?= URL_BASE ?>/home" class="btn btn-secondary btn-sm" title="Limpar busca">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Token / Data</th>
+                        <th>Paciente</th>
+                        <th>Profissional</th>
+                        <th width=120px;>Forma Pag.</th>
+                        <th width=120px;>Valor</th>
+
+                        <th>Ações</th>
+
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($atendimentos)): ?>
+                        <?php foreach ($atendimentos as $token): ?>
+                            <tr>
+                                <td class="fw-bold text-primary" data-order="<?= strtotime($token['data_cadastro']) ?>">
+                                    #<?= htmlspecialchars($token['token']) ?>
+                                    <br>
+                                    <small class="text-muted"><?= date('d/m/Y H:i', strtotime($token['data_cadastro'])) ?></small>
+                                </td>
+                                <td>
+                                    <?= htmlspecialchars($token['paciente']) ?>
+                                    <?php if (!empty($token['cpf'])): ?>
+                                        <br><small class="text-muted"><?= htmlspecialchars($token['cpf']) ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= htmlspecialchars($token['nome_profissional'] ?? 'N/D') ?></td>
+                                <td>
+                                    <span><?= htmlspecialchars($token['formapag'] ?? '') ?></span>
+                                </td>
+                                <td class="fw-bold">R$ <?= number_format($token['valor'], 2, ',', '.') ?></td>
+
+                                <td class="text-center">
+
+                                    <div class="btn-group" role="group">
+
+                                        <?php if (Auth::level() > 2): ?>
+
+                                            <?php if ($token['reembolso'] == false): ?>
+                                                <a href="<?= URL_BASE ?>/token/editar?id=<?= $token['id_token'] ?>"
+                                                    class="btn btn-warning btn-sm" title="Editar">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            <?php endif; ?>
+
+                                        <?php endif; ?>
+
+                                        <a href="<?= URL_BASE ?>/token/imprimir?id=<?= $token['id_token'] ?>"
+                                            target="_blank" class="btn btn-info btn-sm text-white" title="Recibo">
+                                            <i class="fas fa-print"></i>
+                                        </a>
+
+                                        <?php if (Auth::level() > 2): ?>
+                                            <!-- BOTÃO EXCLUIR ADICIONADO -->
+                                            <button type="button" class="btn btn-danger btn-sm btn-excluir" title="Excluir"
+                                                data-bs-toggle="modal" data-bs-target="#modalExcluir"
+                                                data-id="<?= $token['id_token'] ?>"
+                                                data-nome="<?= $token['paciente'] ?>">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+
+                                        <?php endif; ?>
+
+                                    </div>
+
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3 d-block opacity-25"></i>
+                                Nenhum Token encontrado.
+                            </td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- RENDERIZAÇÃO DA PAGINAÇÃO -->
+        <div class="mt-3">
+            <?= isset($paginator) ? $paginator->render() : '' ?>
+        </div>
+
+    </div>
+</div>
+
+<!-- MODAL DE EXCLUSÃO (ADICIONAR NO FINAL DO ARQUIVO) -->
+<div class="modal fade" id="modalExcluir" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-trash-alt me-2"></i> Confirmar Exclusão</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir o Token de <strong id="nomeExcluir"></strong>?</p>
+                <p class="text-danger small mb-0">Esta ação apagará também as sessões vinculadas e não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="<?= URL_BASE ?>/token/excluir" method="POST">
+                    <input type="hidden" name="id_token" id="idExcluir">
+                    <button type="submit" class="btn btn-danger">Excluir Token</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+
+
+<script>
+    // Script para passar dados para o Modal
+    var modalExcluir = document.getElementById('modalExcluir');
+    if (modalExcluir) {
+        modalExcluir.addEventListener('show.bs.modal', function(event) {
+            var button = event.relatedTarget;
+            var id = button.getAttribute('data-id');
+            var nome = button.getAttribute('data-nome');
+
+            modalExcluir.querySelector('#idExcluir').value = id;
+            modalExcluir.querySelector('#nomeExcluir').textContent = nome;
+        });
+    }
+</script>

@@ -1,0 +1,285 @@
+<?php
+// Verifica se estamos em modo de edição
+// $isEdit = isset($paciente);
+// $p = $isEdit ? $paciente : [];
+?>
+
+<?php
+// Verifica se é edição ou cadastro novo
+$isEdit = isset($paciente) && !empty($paciente);
+$p = $isEdit ? $paciente : [];
+$titulo = $isEdit ? 'Editar Paciente' : 'Novo Paciente';
+$action = $isEdit ? URL_BASE . '/pacientes/update' : URL_BASE . '/pacientes/salvar';
+
+$dataCadastro = isset($p['data_cadastro']) && !empty($p['data_cadastro'])
+    ? date('Y-m-d', strtotime($p['data_cadastro']))
+    : date('Y-m-d');
+?>
+
+<div class="container-fluid">
+
+    <?php if ($isEdit): ?>
+        <span class="badge bg-light text-primary">ID: <?= $paciente['id_paciente'] ?></span>
+    <?php endif; ?>
+
+    <div class="d-sm-flex align-items-center justify-content-between mb-2">
+        <h2 class="mb-2 text-gray-600"><i class="fas fa-user-edit"></i> <?= $titulo ?></h2>
+        <a href="<?= defined('URL_BASE') ? URL_BASE : '' ?>/pacientes" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
+            <i class="fas fa-arrow-left fa-sm text-white-50"></i> Voltar para Lista
+        </a>
+    </div>
+
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="alert alert-success alert-dismissible fade show">
+            <?= $_SESSION['success'];
+            unset($_SESSION['success']); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="alert alert-danger alert-dismissible fade show">
+            <?= $_SESSION['error'];
+            unset($_SESSION['error']); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-white border-bottom">
+            <h6 class="m-0 fw-bold text-primary"><i class="fas fa-user-injured me-1"></i> Dados Pessoais</h6>
+        </div>
+        <div class="card-body">
+            <form action="<?= $action ?>" method="POST">
+
+                <?php if ($isEdit): ?>
+                    <input type="hidden" name="id_paciente" value="<?= $paciente['id_paciente'] ?>">
+                <?php endif; ?>
+
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label for="nome" class="form-label fw-bold">Nome Completo *</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-user"></i></span>
+                            <input type="text" class="form-control" id="nome" name="nome" required
+                                value="<?= $isEdit ? $paciente['nome'] : '' ?>" placeholder="Digite o nome completo">
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="cpf" class="form-label fw-bold">CPF</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-id-card"></i></span>
+                            <input type="text" class="form-control" id="cpf" name="cpf"
+                                value="<?= $isEdit ? $paciente['cpf'] : '' ?>" placeholder="000.000.000-00">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="telefone" class="form-label fw-bold">Telefone/WhatsApp</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                            <input type="text" class="form-control" id="telefone" name="telefone"
+                                value="<?= $isEdit ? $paciente['telefone'] : '' ?>" placeholder="(00) 00000-0000">
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="datanascimento" class="form-label fw-bold">Data de Nascimento</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                            <input type="date" class="form-control" id="data_nascimento" name="data_nascimento"
+                                value="<?= $isEdit ? $paciente['data_nascimento'] : '' ?>">
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="genero" class="form-label">Gênero</label>
+                        <select class="form-select" id="genero" name="genero">
+                            <option value="">Selecione...</option>
+                            <?php
+                            $generoAtual = $isEdit ? ($paciente['genero'] ?? '') : '';
+                            $generos = ['Masculino', 'Feminino', 'Agênero', 'Gênero Fluido', 'Não Binário', 'Transgênero', 'Prefiro não informar', 'Outro'];
+                            foreach ($generos as $g):
+                            ?>
+                                <option value="<?= $g ?>" <?= $generoAtual == $g ? 'selected' : '' ?>><?= $g ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label for="email" class="form-label fw-bold">E-mail</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                            <input type="email" class="form-control" id="email" name="email"
+                                value="<?= $isEdit ? $paciente['email'] : '' ?>" placeholder="email@exemplo.com">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="responsavel" class="form-label fw-bold">Responsável Legal (Se menor)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-user-shield"></i></span>
+                            <input type="text" class="form-control" id="nome_responsavel" name="nome_responsavel"
+                                value="<?= $isEdit ? $paciente['nome_responsavel'] : '' ?>" placeholder="Nome do Pai/Mãe/Responsável">
+                        </div>
+                    </div>
+                    <!-- NOVO CAMPO: Responsável Financeiro -->
+                    <div class="col-md-6 mb-3">
+                        <label for="responsavel_financeiro" class="form-label fw-bold">Responsável Financeiro</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-file-invoice-dollar"></i></span>
+                            <input type="text" class="form-control" id="responsavel_financeiro" name="responsavel_financeiro"
+                                value="<?= $isEdit ? $paciente['responsavel_financeiro'] : '' ?>" placeholder="Quem paga o tratamento?">
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <hr class="my-4">
+                <h6 class="fw-bold text-primary mb-3"><i class="fas fa-map-marker-alt me-1"></i> Endereço</h6>
+
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label for="cep" class="form-label fw-bold">CEP</label>
+                        <input type="text" class="form-control" id="cep" name="cep"
+                            value="<?= $isEdit ? $paciente['cep'] : '' ?>" onblur="buscarCep(this.value)">
+                    </div>
+                    <div class="col-md-7 mb-3">
+                        <label for="logradouro" class="form-label fw-bold">Logradouro</label>
+                        <input type="text" class="form-control" id="logradouro" name="logradouro"
+                            value="<?= $isEdit ? $paciente['logradouro'] : '' ?>">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="numero" class="form-label fw-bold">Número</label>
+                        <input type="text" class="form-control" id="numero" name="numero"
+                            value="<?= $isEdit ? $paciente['numero'] : '' ?>">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="complemento" class="form-label fw-bold">Complemento</label>
+                        <input type="text" class="form-control" id="complemento" name="complemento"
+                            value="<?= $isEdit ? $paciente['complemento'] : '' ?>">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="bairro" class="form-label fw-bold">Bairro</label>
+                        <input type="text" class="form-control" id="bairro" name="bairro"
+                            value="<?= $isEdit ? $paciente['bairro'] : '' ?>">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="cidade" class="form-label fw-bold">Cidade</label>
+                        <input type="text" class="form-control" id="cidade" name="cidade"
+                            value="<?= $isEdit ? $paciente['cidade'] : '' ?>">
+                    </div>
+                    <div class="col-md-1 mb-3">
+                        <label for="estado" class="form-label fw-bold">UF</label>
+                        <input type="text" class="form-control" id="estado" name="estado"
+                            value="<?= $isEdit ? $paciente['estado'] : '' ?>">
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                <h6 class="fw-bold text-primary mb-3"><i class="fas fa-info-circle me-1"></i> Informações Adicionais</h6>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="tags" class="form-label fw-bold">Tags / Etiquetas</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-tags"></i></span>
+                            <input type="text" class="form-control" id="tags" name="tags"
+                                value="<?= $isEdit ? $paciente['tags'] : '' ?>" placeholder="Ex: Prioridade, Particular, Convênio">
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label for="data_cadastro" class="form-label fw-bold text-primary">Data Cadastro</label>
+                        <input type="date" class="form-control border-left-primary" id="data_cadastro" name="data_cadastro" value="<?= $dataCadastro ?>">
+                    </div>
+
+
+                    <div class="col-md-4">
+                        <label class="form-label d-block fw-bold text-muted small text-uppercase">Origem do Paciente</label>
+                        <div class="d-flex align-items-center mt-2">
+                            <div class="form-check form-check-inline me-4">
+                                <input class="form-check-input" type="radio" name="origem" value="Organico" id="origem_organico"
+                                    <?= ($isEdit && isset($paciente['origem']) && $paciente['origem'] == 'Organico') ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="origem_organico">
+                                    <i class="fas fa-leaf text-success me-1"></i> Orgânico
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="origem" value="Marketing" id="origem_marketing"
+                                    <?= ($isEdit && isset($paciente['origem']) && $paciente['origem'] == 'Marketing') ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="origem_marketing">
+                                    <i class="fas fa-bullhorn text-info me-1"></i> Marketing
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label for="observacoes" class="form-label fw-bold">Observações Clínicas</label>
+                        <textarea class="form-control" id="observacoes" name="observacoes" rows="4"><?= $isEdit ? $paciente['observacoes'] : '' ?></textarea>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a href="<?= defined('URL_BASE') ? URL_BASE : '' ?>/pacientes" class="btn btn-light border me-2">Cancelar</a>
+                    <button type="submit" class="btn btn-success px-4 fw-bold">
+                        <i class="fas fa-save me-1"></i> <?= $isEdit ? 'Atualizar Dados' : 'Salvar Paciente' ?>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Script básico para preencher CEP (ViaCEP)
+    function buscarCep(cep) {
+        cep = cep.replace(/\D/g, '');
+        if (cep.length === 8) {
+            fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.erro) {
+                        document.getElementById('logradouro').value = data.logradouro;
+                        document.getElementById('bairro').value = data.bairro;
+                        document.getElementById('cidade').value = data.localidade;
+                        document.getElementById('estado').value = data.uf;
+                        document.getElementById('numero').focus();
+                    }
+                });
+        }
+    }
+
+    // Máscara de CPF
+    document.getElementById('cpf').addEventListener('input', function(e) {
+        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,3})(\d{0,2})/);
+        e.target.value = !x[2] ? x[1] : x[1] + '.' + x[2] + (x[3] ? '.' + x[3] : '') + (x[4] ? '-' + x[4] : '');
+    });
+
+    // Máscara de Telefone
+    document.getElementById('telefone').addEventListener('input', function(e) {
+        let v = e.target.value.replace(/\D/g, "");
+        if (v.length > 11) v = v.substring(0, 11);
+        if (v.length > 10) {
+            v = v.replace(/^(\d\d)(\d{5})(\d{4}).*/, "($1) $2-$3");
+        } else if (v.length > 5) {
+            v = v.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+        } else if (v.length > 2) {
+            v = v.replace(/^(\d\d)(\d{0,5}).*/, "($1) $2");
+        }
+        e.target.value = v;
+    });
+</script>

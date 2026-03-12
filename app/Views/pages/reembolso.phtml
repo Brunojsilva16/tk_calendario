@@ -1,0 +1,826 @@
+    <?php
+
+use App\Core\Auth;
+use App\Helpers\DataHelper;
+
+// PROTEÇÃO DE ROTA: Exige nível mínimo 2 (Admin)
+// Se falhar, redireciona para home e define $_SESSION['error']
+Auth::requireLevel(2);
+
+// app/views/pages/gerar_token.phtml 
+?>
+<div class="container-fluid">
+    <h2 class="mb-2 text-gray-600">REEMBOLSO</h2>
+
+    <?php if (isset($success) && $success): ?>
+        <div class="alert alert-success alert-dismissible fade show">
+            <?= $success ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <?php if (isset($error) && $error): ?>
+        <div class="alert alert-danger alert-dismissible fade show">
+            <?= $error ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <form action="<?= URL_BASE ?>/token/reembolso/save" method="POST" autocomplete="off" id="formGerarToken">
+
+        <input type="hidden" name="hiddenInputId" id="id_paciente">
+        <input type="hidden" name="origem" id="hiddenOrigem" value="Sistema">
+        <!-- Nota: Existe um conflito de names "outro" aqui e no input abaixo. O backend pegará o último ou um array. -->
+        <input type="hidden" name="outro_hidden_fix" id="hiddenOutro" value="">
+
+        <div class="row">
+            <div class="col-lg-8 coluna-70">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 fw-bold text-primary">
+                            Dados do Token
+                            <span id="tempo_cadastro_display" class="ms-2 small text-secondary fw-normal fs-6">
+                            </span>
+                        </h6>
+
+                    </div>
+                    <div class="card-body">
+                        <!-- 1. Identificação -->
+                        <h6 class="text-muted mb-3 small text-uppercase fw-bold">1. Identificação</h6>
+                        <div class="row">
+                            <!-- Campo de Busca de Paciente -->
+                            <div class="col-md-6 mb-3 position-relative">
+                                <label for="paciente_busca" class="form-label fw-bold">Buscar Paciente <small class="text-muted">(Nome ou CPF)</small></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="text" class="form-control" id="paciente_busca" name="nome_paciente" placeholder="Digite para buscar..." autocomplete="off" required>
+                                </div>
+
+                                <!-- Lista Flutuante -->
+                                <div id="lista_sugestoes" class="list-group position-absolute w-100 shadow" style="z-index: 1050; display: none; top: 100%; max-height: 300px; overflow-y: auto;"></div>
+                                <small class="text-muted" id="status_busca">Digite pelo menos 3 caracteres.</small>
+                            </div>
+                            <div class="col-md-5 mb-3">
+                                <label class="form-label fw-bold">Profissional *</label>
+                                <select class="form-select" name="profissional_id" id="profissional_id" required>
+                                    <option value="">Selecione...</option>
+                                    <?php foreach ($profissionais as $prof): ?>
+                                        <option value="<?= $prof['id'] ?>" data-porcentagem="<?= $prof['porcentagem'] ?>"><?= htmlspecialchars($prof['nome']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- LINHA ALTERADA: Reduzi colunas para caber o Telefone -->
+                        <!-- Campos Automáticos (Somente Leitura) -->
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">CPF</label>
+                                <input type="text" class="form-control bg-light-adm" id="display_cpf" name="cpf_paciente" readonly required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Telefone</label>
+                                <input type="text" class="form-control bg-light-adm" id="display_telefone" name="telefone_paciente" readonly required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Nome Responsável</label>
+                                <input type="text" class="form-control" id="display_responsavel" name="nome_responsavel">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Resp. Financeiro</label>
+                                <input type="text" class="form-control" id="display_financeiro" name="responsavel_financeiro">
+                            </div>
+                        </div>
+
+
+                        <hr>
+
+                        <!-- 2. Financeiro -->
+                        <h6 class="text-muted mb-3 small text-uppercase fw-bold">2. Financeiro</h6>
+                        <div class="row">
+                            <div class="col-md-5 mb-5">
+                                <label class="form-label">Modalidade</label>
+                                <select class="form-select" name="modalidade" id="modalidade" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Avaliação T">Avaliação Terapia (Psicologia / Terapia Casal / TO)</option>
+                                    <option value="Avaliação F">Avaliação Fono</option>
+                                    <option value="Avaliação N">Avaliação Neuropsicológica</option>
+                                    <option value="Visita E">Visita Escolar</option>
+                                    <option value="Proase">Proase</option>
+                                    <option value="Plano Mensal">Plano Mensal</option>
+                                    <option value="Consulta Psiquiatra">Consulta Psiquiatra</option>
+                                    <option value="Consulta Nutrição">Consulta Nutrição</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4 mb-4">
+                                <label class="form-label">Nome do Banco</label>
+                                <select name="nome_banco" class="form-select" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Itau">Banco Itau</option>
+                                    <option value="Bradesco">Banco Bradesco</option>
+                                    <option value="---">---</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Pagamento</label>
+                                <select class="form-select" name="formapag" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Crédito">Crédito</option>
+                                    <option value="Débito">Débito</option>
+                                    <option value="Espécie">Espécie</option>
+                                    <option value="Pix">Pix</option>
+                                    <option value="Pix / Qrcode">Pix / Qrcode</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+
+                            <div class="col-md-5 mb-2">
+                                <label class="form-label fw-bold">Primeiro atendimento</label>
+                                <div class="d-flex align-items-center">
+                                    <div class="form-check form-check-inline me-4">
+                                        <input class="form-check-input" type="radio" name="primeiro_at" value="1" id="sim">
+                                        <label class="form-check-label" for="sim">
+                                            <i class="fa fa-check" aria-hidden="true"></i> Sim
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="primeiro_at" value="0" id="nao" checked>
+                                        <label class="form-check-label" for="nao">
+                                            <i class="fa-solid fa-not-equal"></i> Não
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="primeiro_at" value="2" id="retorno">
+                                        <label class="form-check-label" for="retorno">
+                                            <i class="fa-solid fa-repeat"></i> Retorno
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-5 mb-2">
+                                <label class="form-label text-secondary">Motivo Agendamento</label>
+                                <select class="form-select" name="motivo_ag" id="motivo_agendamento" required disabled>
+                                    <option value="">Selecione...</option>
+                                    <option value="" disabled style="background-color: #ebebeb; color:#0dcaf0; font-weight: 600;">Clinica</option>
+                                    <option value="Horário adequado">Horário adequado</option>
+                                    <option value="Horario disponível">Horario disponível</option>
+                                    <option value="Indicação de profissional Assista">Indicação de profissional Assista</option>
+                                    <option value="Outro">Outro</option>
+                                    <option value="" disabled style="background-color: #ebebeb; color:#0dcaf0; font-weight: 600;">Profissional</option>
+                                    <option value="Procurou profissional">Procurou profissional</option>
+                                    <option value="Profissional trouxe">Profissional trouxe</option>
+                                    <option value="Retornou ao profissional">Retornou ao profissional</option>
+                                </select>
+                            </div>
+
+                            <!-- CAMPO PORCENTAGEM -->
+                            <!-- <input type="hidden" name="porcentagem" id="hiddenPorcentagem" value="100.00"> -->
+                            <div class="col-md-2 mb-2">
+                                <label class="form-label text-secondary" for="porcentagem">(%)</label>
+                                <div class="input-group">
+                                    <select name="porcentagem" id="porcentagem" class="form-select" disabled readonly>
+                                        <option value="00.00">0%</option>
+                                        <option value="65.00">65%</option>
+                                        <option value="70.00">70%</option>
+                                        <option value="75.00">75%</option>
+                                        <option value="80.00">80%</option>
+                                        <option value="85.00">85%</option>
+                                        <option value="90.00">90%</option>
+                                        <option value="92.00">92%</option>
+                                        <option value="95.00">95%</option>
+                                        <option value="100.00">100%</option>
+                                    </select>
+                                </div>
+                                <!-- <small class="form-text text-muted">A porcentagem muda automaticamente ao escolher o profissional.</small> -->
+                            </div>
+                            <input type="hidden" name="porcentagem" id="hiddenPorcentagem" value="100.00">
+
+
+                        </div>
+
+                        <!-- Container do campo Outro -->
+                        <div class="row">
+                            <div class="col-md-12 mb-3" id="container_outro" style="display: none;">
+                                <label class="form-label mb-0">Outro (Descreva)</label>
+                                <input type="hidden" class="form-control" id="outro" name="outro">
+                            </div>
+                        </div>
+
+                        <div id="bg-adm" class="row align-items-end bg-light-adm p-2">
+
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label fw-bold text-success">Valor (R$)</label>
+                                <input type="text" class="form-control fw-bold border-success" name="valor" id="valor" placeholder="0,00" required>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="form-label fw-bold">Data pagamento</label>
+                                <input type="date" class="form-control" name="vencimento" value="<?= date('Y-m-d') ?>" required>
+                            </div>
+
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label d-block fw-bold text-muted small text-uppercase">Origem do Paciente</label>
+                                <div class="d-flex align-items-center">
+                                    <div class="form-check form-check-inline me-4">
+                                        <input class="form-check-input" type="radio" name="origem_visual" value="Organico" id="origem_organico" disabled>
+                                        <label class="form-check-label" for="origem_organico">
+                                            <i class="fas fa-leaf text-success me-1"></i> Orgânico
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="origem_visual" value="Marketing" id="origem_marketing" disabled>
+                                        <label class="form-check-label" for="origem_marketing">
+                                            <i class="fas fa-bullhorn text-info me-1"></i> Marketing
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mb-2">
+                            <label for="obs" class="form-label fw-bold">Observações</label>
+                            <textarea class="form-control" id="obs" name="obs" rows="2"></textarea>
+                        </div>
+
+                        <div class="card-footer text-right">
+                            <button type="submit" class="btn btn-danger">Gerar Reembolso</button>
+                        </div>
+                    </div>
+                </div>
+
+
+
+            </div>
+<!-- 
+            <div class="col-lg-4 coluna-30">
+                <div class="card shadow mb-4 border-left-info">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 fw-bold text-info"><i class="fas fa-calendar-alt me-1"></i> Sessões</h6>
+                        <button type="button" class="btn btn-sm btn-info text-white" id="btnAddSessao">
+                            <i class="fas fa-plus"></i> Add
+                        </button>
+                    </div>
+                    <div class="card-body bg-light-adm">
+                        <div id="container-sessoes">
+                            <div class="mb-2 input-group sessao-item">
+                                <span class="input-group-text bg-white text-info fw-bold">1ª</span>
+                                <input type="date" class="form-control" name="sessoes[]">
+                            </div>
+                        </div>
+                        <div class="mt-3 text-center">
+                            <small class="text-muted fst-italic">As datas serão salvas automaticamente.</small>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div> -->
+        </div>
+    </form>
+</div>
+
+<!-- Importação do SweetAlert2 (Para Alertas Modernos) -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+
+        // 1. Pegamos os elementos do HTML
+        const selectProfissional = document.getElementById('profissional_id');
+        const selectModalidade = document.getElementById('modalidade');
+        const selectPorcentagem = document.getElementById('porcentagem');
+        const hiddenPorcentagem = document.getElementById('hiddenPorcentagem');
+
+        // --- FUNÇÃO DE SEGURANÇA (ANTI-BURLA) ---
+        // Esta função lê o profissional atual e força a porcentagem dele no campo
+        function forcarPorcentagemPadrao() {
+            if (!selectProfissional) return; // Segurança extra
+
+            const opcaoSelecionada = selectProfissional.options[selectProfissional.selectedIndex];
+            // Verifica se existe opção selecionada para evitar erro
+            if (opcaoSelecionada) {
+                const porcentagemPadrao = opcaoSelecionada.getAttribute('data-porcentagem');
+
+                if (porcentagemPadrao) {
+                    // Se for Avaliação T, libera para edição manual
+                    if (selectPorcentagem) selectPorcentagem.value = porcentagemPadrao;
+                    if (hiddenPorcentagem) hiddenPorcentagem.value = porcentagemPadrao;
+                } else {
+                    // Se for qualquer outra modalidade:
+                    if (selectPorcentagem) selectPorcentagem.value = "100.00";
+                    if (hiddenPorcentagem) hiddenPorcentagem.value = "100.00";
+                }
+            }
+        }
+
+        // 2. Evento: Quando muda o Profissional
+        if (selectProfissional) {
+            selectProfissional.addEventListener('change', function() {
+                forcarPorcentagemPadrao();
+            });
+        }
+
+        // 3. Evento: Quando muda a Modalidade
+        if (selectModalidade) {
+            selectModalidade.addEventListener('change', function() {
+
+                // CASO 1: Avaliação T
+                if (this.value === "Avaliação N") {
+                    if (selectPorcentagem) selectPorcentagem.value = "65.00";
+                    if (hiddenPorcentagem) hiddenPorcentagem.value = "65.00";
+
+                    // CASO 2: Consulta Psiquiatra (NOVO)
+                } else if (this.value === "Consulta Psiquiatra") {
+                    if (selectPorcentagem) selectPorcentagem.value = "92.00";
+                    if (hiddenPorcentagem) hiddenPorcentagem.value = "92.00";
+
+                    // CASO 3: Qualquer outra coisa -> Volta para o padrão do profissional
+                } else {
+                    forcarPorcentagemPadrao();
+                }
+            });
+        }
+
+        // Seleciona todos os radios que mudam o tipo de atendimento (nome="primeiro_at" ou similar)
+        const radiosAtendimento = document.querySelectorAll('input[name="primeiro_at"]'); // Ajuste o 'name' se necessário
+
+        radiosAtendimento.forEach(radio => {
+            radio.addEventListener('change', verificarOpcaoRetorno);
+        });
+
+        // Executa uma vez ao carregar para garantir o estado correto
+        verificarOpcaoRetorno();
+
+        // Executa uma vez ao carregar para garantir o estado correto
+
+        const selectMotivo = document.getElementById('motivo_agendamento'); // Select ou use querySelector pelo name
+
+        // ======================================================
+        // 1. LÓGICA DO CAMPO OUTRO (MOTIVO)
+        // ======================================================
+        const inputOutro = document.getElementById('outro');
+        const containerOutro = document.getElementById('container_outro');
+
+        // Garante que o container (label) do input outro é o pai direto ou o div especifico
+        const divWrapperOutro = containerOutro || (inputOutro ? inputOutro.closest('.col-md-12') : null);
+
+        if (selectMotivo && inputOutro && divWrapperOutro) {
+
+            function toggleOutro() {
+                if (selectMotivo.value === 'Outro') {
+                    // SELECIONOU OUTRO
+                    inputOutro.type = 'text'; // Muda o type como solicitado
+                    divWrapperOutro.style.display = 'block'; // Mostra o label/container
+                    inputOutro.setAttribute('required', 'required'); // Torna obrigatório
+                } else {
+                    // SELECIONOU OUTRA OPÇÃO
+                    inputOutro.type = 'hidden'; // Oculta mudando o type
+                    divWrapperOutro.style.display = 'none'; // Oculta o label/container visualmente
+                    inputOutro.removeAttribute('required'); // Remove obrigatoriedade
+                    inputOutro.value = ''; // Limpa o valor digitado
+                }
+            }
+
+            // Ouve evento de mudança
+            selectMotivo.addEventListener('change', toggleOutro);
+
+            // Roda ao iniciar para garantir o estado correto
+            toggleOutro();
+        }
+
+        // ======================================================
+        // 2. LÓGICA PRIMEIRO ATENDIMENTO (HABILITAR/DESABILITAR MOTIVO)
+        // ======================================================
+        const radioSim = document.getElementById('sim');
+        const radioNao = document.getElementById('nao');
+        const radioRetorno = document.getElementById('retorno');
+
+        function togglePrimeiroAtendimento() {
+            if (radioSim && radioSim.checked) {
+                // Se SIM, habilita o select
+                selectMotivo.disabled = false;
+            } else {
+                // Se NÃO (ou outro), desabilita
+                selectMotivo.disabled = true;
+                selectMotivo.value = ''; // Limpa a seleção
+                // Importante: Dispara o change para que a lógica do "Outro" rode e esconda o input se necessário
+                selectMotivo.dispatchEvent(new Event('change'));
+            }
+
+            if (radioRetorno && radioRetorno.checked) {
+                selectMotivo.disabled = false;
+                selectMotivo.value = 'Retornou ao profissional';
+            }
+
+        }
+
+        if (radioSim && radioNao && radioRetorno && selectMotivo) {
+            radioSim.addEventListener('change', togglePrimeiroAtendimento);
+            radioNao.addEventListener('change', togglePrimeiroAtendimento);
+            radioRetorno.addEventListener('change', togglePrimeiroAtendimento);
+
+            // Estado inicial ao carregar a página
+            togglePrimeiroAtendimento();
+        }
+
+        // ======================================================
+        // DEMAIS LÓGICAS (BUSCA, MÁSCARAS, ETC)
+        // ======================================================
+
+        const inputBusca = document.getElementById('paciente_busca');
+        const listaSugestoes = document.getElementById('lista_sugestoes');
+        const statusBusca = document.getElementById('status_busca');
+
+        const displayCpf = document.getElementById('display_cpf');
+        const displayTelefone = document.getElementById('display_telefone');
+        const displayResponsavel = document.getElementById('display_responsavel');
+        const displayFinanceiro = document.getElementById('display_financeiro');
+
+        const inputNome = document.getElementById('nome_paciente');
+        const inputCpf = document.getElementById('cpf_paciente');
+        const inputTel = document.getElementById('telefone_paciente'); // Novo
+        const inputResp = document.getElementById('nome_responsavel');
+        const inputFin = document.getElementById('responsavel_financeiro');
+        const datalist = document.getElementById('lista_pacientes');
+        const hiddenInputId = document.getElementById('id_paciente'); // O input hidden
+
+        // Radios de Origem
+        const hiddenOrigem = document.getElementById('hiddenOrigem');
+        const radioOrganico = document.getElementById('origem_organico');
+        const radioMarketing = document.getElementById('origem_marketing');
+
+        let pacientesMap = {};
+        let timeout = null;
+
+        // const formGerarToken = document.getElementById('formGerarToken');
+        // if (formGerarToken) {
+        //     formGerarToken.addEventListener('submit', function(e) {
+        //         // Seleciona inputs que começam com sessoes
+        //         const inputsSessao = document.querySelectorAll('input[name^="sessoes"]');
+        //         let sessoesValidas = true;
+
+        //         inputsSessao.forEach(input => {
+        //             if (!input.value) {
+        //                 sessoesValidas = false;
+        //                 input.classList.add('is-invalid');
+        //                 input.classList.add('border-danger');
+        //                 input.addEventListener('change', function() {
+        //                     if (this.value) this.classList.remove('is-invalid', 'border-danger');
+        //                 });
+        //             }
+        //         });
+
+        //         if (!sessoesValidas) {
+        //             e.preventDefault();
+        //             // Alerta Moderno (SweetAlert2)
+        //             Swal.fire({
+        //                 icon: 'warning',
+        //                 title: 'Atenção',
+        //                 text: 'Por favor, preencha todas as datas das sessões adicionadas.',
+        //                 confirmButtonText: 'Entendido',
+        //                 confirmButtonColor: '#4e73df' // Cor primária (azul) comum em temas admin
+        //             }).then(() => {
+        //                 // Rola até o erro após fechar o alerta
+        //                 document.getElementById('container_sessoes').scrollIntoView({
+        //                     behavior: 'smooth',
+        //                     block: 'center'
+        //                 });
+        //             });
+        //         }
+        //     });
+        // }
+
+        inputBusca.addEventListener('input', function() {
+            const termo = this.value.trim();
+
+            clearTimeout(timeout);
+
+            if (termo.length < 3) {
+                listaSugestoes.style.display = 'none';
+                statusBusca.innerText = "Digite pelo menos 3 caracteres.";
+                statusBusca.className = "text-muted";
+                // Limpa campos se limpar a busca
+                if (termo.length === 0) limparCampos();
+                return;
+            }
+
+            statusBusca.innerText = "Buscando...";
+
+            timeout = setTimeout(async () => {
+                const baseUrl = '<?= rtrim(URL_BASE, '/') ?>';
+                const searchUrl = `${baseUrl}/api/pacientes/busca?term=${encodeURIComponent(termo)}`;
+
+                try {
+                    const response = await fetch(searchUrl, {
+                        method: 'GET',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'include'
+                    });
+
+                    if (response.status === 401) throw new Error('Sessão expirada.');
+                    if (!response.ok) throw new Error('Erro na comunicação.');
+
+                    const data = await response.json();
+
+                    listaSugestoes.innerHTML = '';
+
+                    if (data.error) {
+                        statusBusca.innerText = data.error;
+                        statusBusca.className = "text-danger";
+                        return;
+                    }
+
+                    if (data.length > 0) {
+                        listaSugestoes.style.display = 'block';
+                        statusBusca.innerText = `${data.length} pacientes encontrados.`;
+                        statusBusca.className = "text-success";
+
+                        data.forEach(paciente => {
+                            const item = document.createElement('button');
+                            item.type = 'button';
+                            item.classList.add('list-group-item', 'list-group-item-action', 'py-2');
+
+                            item.innerHTML = `
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-user me-3 text-secondary fs-4"></i>
+                                <div class="text-start">
+                                    <div class="fw-bold text-dark">${paciente.nome}</div>
+                                    <div class="small text-muted"><i class="far fa-id-card me-1"></i>${paciente.cpf}</div>
+                                </div>
+                            </div>`;
+
+                            item.addEventListener('click', function() {
+                                // Preenche ID e Nome Busca
+                                inputBusca.value = paciente.nome;
+                                hiddenInputId.value = paciente.id;
+
+                                const displayTempo = document.getElementById('tempo_cadastro_display');
+
+                                if (paciente.data_cadastro) {
+                                    // Formata a data de YYYY-MM-DD para DD/MM/YYYY
+                                    const dataObj = new Date(paciente.data_cadastro);
+                                    const dataFormatada = dataObj.toLocaleDateString('pt-BR', {
+                                        timeZone: 'UTC'
+                                    });
+
+                                    // Define o texto. Você pode adicionar lógica extra aqui se quiser diferenciar quem já tem token
+                                    // Exemplo: Se o backend retornar 'tem_token': true, você pode mudar a cor ou texto.
+                                    displayTempo.innerHTML = `<i class="fas fa-calendar-alt ms-2"></i> Cadastro: ${dataFormatada}`;
+                                    displayTempo.style.display = 'inline';
+                                } else {
+                                    displayTempo.innerHTML = ''; // Limpa se não tiver data
+                                }
+
+                                // PREENCHE OS NOVOS CAMPOS AUTOMATICAMENTE
+                                displayCpf.value = paciente.cpf;
+                                displayTelefone.value = paciente.telefone || '';
+                                displayResponsavel.value = paciente.nome_responsavel || '';
+                                displayFinanceiro.value = paciente.responsavel_financeiro || '';
+
+                                // Reseta primeiro
+                                radioOrganico.checked = false;
+                                radioMarketing.checked = false;
+                                // hiddenOrigem.value = 'Sistema';
+
+                                if (paciente.origem) {
+                                    // Atualiza o hidden para envio
+                                    hiddenOrigem.value = paciente.origem;
+
+                                    // Marca o visual (mesmo disabled, ele aparece checado)
+                                    if (paciente.origem === 'Organico') {
+                                        radioOrganico.checked = true;
+                                    } else if (paciente.origem === 'Marketing') {
+                                        radioMarketing.checked = true;
+                                    }
+                                }
+
+                                listaSugestoes.style.display = 'none';
+                                statusBusca.innerText = "Paciente selecionado.";
+                                statusBusca.className = "text-primary fw-bold";
+
+                            });
+
+                            listaSugestoes.appendChild(item);
+                        });
+                    } else {
+                        listaSugestoes.style.display = 'none';
+                        statusBusca.innerText = "Nenhum paciente encontrado.";
+                        statusBusca.className = "text-warning";
+                    }
+
+                } catch (err) {
+                    console.error('Erro:', err);
+                    statusBusca.innerText = err.message;
+                    statusBusca.className = "text-danger";
+                }
+            }, 300);
+        });
+
+
+    });
+
+    // Função para controlar a visibilidade da opção no Select
+    // Função atualizada para controlar o Select de Motivo
+    function verificarOpcaoRetorno() {
+        const radioRetorno = document.getElementById('retorno');
+        const selectMotivo = document.getElementById('motivo_agendamento');
+
+        // Proteção caso os elementos não existam na tela
+        if (!radioRetorno || !selectMotivo) return;
+
+        const isRetorno = radioRetorno.checked;
+        const options = selectMotivo.querySelectorAll('option');
+
+        options.forEach(option => {
+            // Verifica se é a opção alvo ("Retornou ao profissional")
+            const isTarget = option.value === "Retornou ao profissional";
+
+            // Verifica se é um dos cabeçalhos separadores (Clinica, Profissional)
+            // Eles tem valor vazio "", mas não são a opção "Selecione..."
+            const isHeader = option.value === "" && option.text.trim() !== "Selecione...";
+
+            if (isRetorno) {
+                // === MODO RETORNO ATIVADO ===
+                // Deixa visível APENAS a opção de retorno
+                if (isTarget) {
+                    option.style.display = ''; // Remove 'none' para exibir
+                    option.disabled = false; // Habilita
+                    option.selected = true; // Força a seleção automática
+                } else {
+                    option.style.display = 'none'; // Oculta visualmente
+                    option.disabled = true; // Bloqueia o envio/seleção
+                }
+            } else {
+                // === MODO PRIMEIRO ATENDIMENTO / NÃO ===
+                // Esconde a opção de retorno e mostra as outras
+                if (isTarget) {
+                    option.style.display = 'none';
+                    option.disabled = true;
+                    // Se por acaso estava selecionada, reseta o select
+                    if (option.selected) selectMotivo.value = "";
+                } else {
+                    option.style.display = ''; // Mostra visualmente
+
+                    // Só desbloqueia se NÃO for um cabeçalho (mantém "Clinica" e "Profissional" travados)
+                    if (!isHeader) {
+                        option.disabled = false;
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Versão JavaScript do DataHelper::calcularTempoCadastro
+     */
+    function calcularTempoCadastroJS(dataString) {
+        if (!dataString) return "Novo Cliente";
+
+        // Converte string SQL (YYYY-MM-DD HH:MM:SS) para Objeto Date
+        // O split resolve problemas de compatibilidade de navegador com formato SQL
+        let t = dataString.split(/[- :]/);
+        // Nota: mês em JS começa em 0 (janeiro = 0), por isso t[1]-1
+        let dataCadastro = new Date(t[0], t[1] - 1, t[2]);
+        let hoje = new Date();
+
+        // Zera horas para comparar apenas datas (igual ao PHP setTime(0,0,0))
+        dataCadastro.setHours(0, 0, 0, 0);
+        hoje.setHours(0, 0, 0, 0);
+
+        if (dataCadastro > hoje) return "Novo Cliente";
+
+        // Cálculo da diferença
+        let anos = hoje.getFullYear() - dataCadastro.getFullYear();
+        let meses = hoje.getMonth() - dataCadastro.getMonth();
+        let dias = hoje.getDate() - dataCadastro.getDate();
+
+        // Ajuste matemático de datas
+        if (dias < 0) {
+            meses--;
+            // Pega o último dia do mês anterior para somar aos dias
+            let ultimoDiaMesAnterior = new Date(hoje.getFullYear(), hoje.getMonth(), 0).getDate();
+            dias += ultimoDiaMesAnterior;
+        }
+        if (meses < 0) {
+            anos--;
+            meses += 12;
+        }
+
+        let partes = [];
+
+        // Lógica de texto
+        if (anos > 0) partes.push(anos + (anos === 1 ? ' ano' : ' anos'));
+        if (meses > 0) partes.push(meses + (meses === 1 ? ' mês' : ' meses'));
+
+        // Se for menos de 1 mês, mostra dias
+        if (anos === 0 && meses === 0 && dias > 0) {
+            partes.push(dias + (dias === 1 ? ' dia' : ' dias'));
+        }
+
+        if (partes.length === 0) return "Cliente desde hoje";
+
+        // Formatação da string final
+        if (partes.length === 1) return "Cliente há " + partes[0];
+        if (partes.length === 2) return "Cliente há " + partes[0] + " e " + partes[1];
+
+        let ultimo = partes.pop();
+        return "Cliente há " + partes.join(", ") + " e " + ultimo;
+    }
+
+    // Máscara de Telefone para o novo campo
+    const telInput = document.getElementById('telefone_paciente');
+    if (telInput) {
+        telInput.addEventListener('input', function(e) {
+            let v = e.target.value.replace(/\D/g, "");
+            if (v.length > 11) v = v.substring(0, 11);
+            if (v.length > 10) {
+                v = v.replace(/^(\d\d)(\d{5})(\d{4}).*/, "($1) $2-$3");
+            } else if (v.length > 5) {
+                v = v.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+            } else if (v.length > 2) {
+                v = v.replace(/^(\d\d)(\d{0,5}).*/, "($1) $2");
+            } else {
+                v = v.replace(/^(\d*)/, "($1");
+            }
+            e.target.value = v;
+        });
+    }
+
+    const btnAdd = document.getElementById('btnAddSessao');
+    const container = document.getElementById('container-sessoes');
+    let contador = 1;
+    if (btnAdd) {
+        btnAdd.addEventListener('click', function() {
+            contador++;
+            const div = document.createElement('div');
+            div.className = 'mb-2 input-group sessao-item fade-in';
+            div.innerHTML = `
+                <span class="input-group-text bg-white text-secondary fw-bold">${contador}ª</span>
+                <input type="date" class="form-control" name="sessoes[]" required>
+                <button type="button" class="btn btn-outline-danger btn-remove-sessao"><i class="fas fa-times"></i></button>
+            `;
+            container.appendChild(div);
+        });
+        container.addEventListener('click', e => {
+            if (e.target.closest('.btn-remove-sessao')) e.target.closest('.sessao-item').remove();
+        });
+    }
+
+    const inputVal = document.getElementById('valor');
+    if (inputVal) inputVal.addEventListener('input', e => {
+        let v = e.target.value.replace(/\D/g, '');
+        v = (v / 100).toFixed(2) + '';
+        v = v.replace(".", ",").replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+        e.target.value = v;
+    });
+
+    function limparCampos() {
+        // inputId.value = '';
+        displayCpf.value = '';
+        displayTelefone.value = '';
+        displayResponsavel.value = '';
+        displayFinanceiro.value = '';
+    }
+
+    // document.addEventListener('click', function(e) {
+    //     if (!inputBusca.contains(e.target) && !listaSugestoes.contains(e.target)) {
+    //         listaSugestoes.style.display = 'none';
+    //     }
+    // });
+</script>
+
+<style>
+    .fade-in {
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (min-width: 992px) {
+        .coluna-70 {
+            width: 70%;
+        }
+
+        .coluna-30 {
+            width: 30%;
+        }
+    }
+</style>

@@ -1,0 +1,32 @@
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+                    <h6>Agendamento de Sessões</h6>
+                    <a href="<?= URL_BASE ?>/sessoes/nova" class="btn btn-primary btn-sm">Nova Sessão</a>
+                </div>
+                <div class="card-body px-4 pt-4 pb-4">
+                    <!-- Onde o calendário será renderizado -->
+                    <div id="calendar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Incluindo a biblioteca FullCalendar via CDN -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/pt-br.global.min.js'></script>
+
+<style>
+    /* Pequenos ajustes visuais caso necessário */
+    #calendar {
+        max-width: 100%;
+        margin: 0 auto;
+        min-height: 600px;
+    }
+    .fc-event {
+        cursor: pointer;
+    }
+</style>

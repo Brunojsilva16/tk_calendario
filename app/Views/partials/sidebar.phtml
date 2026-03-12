@@ -1,0 +1,120 @@
+<?php
+
+use App\Core\Auth;
+// app/views/partials/sidebar.phtml 
+?>
+<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+
+    <!-- Sidebar - Brand -->
+    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="<?= URL_BASE ?>/home">
+        <div class="sidebar-brand-icon">
+            <i class="fas fa-heartbeat"></i>
+        </div>
+        <div class="sidebar-brand-text mx-3">Clínica Assista</div>
+    </a>
+
+    <!-- Divider -->
+    <hr class="sidebar-divider my-0">
+
+    <!-- Nav Item - Dashboard -->
+    <li class="nav-item">
+        <a class="nav-link" href="<?= URL_BASE ?>/home">
+            <i class="fas fa-fw fa-tachometer-alt"></i>
+            <span>Painel de Controle</span></a>
+    </li>
+
+    <!-- Adicione isso dentro da sua <ul> ou <div> de navegação no sidebar.phtml -->
+    <li class="nav-item">
+        <a class="nav-link" href="<?= URL_BASE ?>/calendario">
+            <i class="fas fa-calendar-alt"></i> <!-- Ícone (se usar FontAwesome) -->
+            <span>Calendário de Sessões</span>
+        </a>
+    </li>
+
+    <!-- BLOCO ADMINISTRATIVO - NÍVEL MAIOR QUE 1 -->
+
+    <!-- Divider -->
+    <hr class="sidebar-divider">
+
+    <?php if (Auth::level() > 2): ?>
+        <div class="sidebar-heading">
+            Tokens
+        </div>
+
+        <li class="nav-item">
+            <a class="nav-link" href="<?= URL_BASE ?>/gerar-token">
+                <i class="fas fa-fw fa-plus-circle"></i>
+                <span>Novo Token</span></a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link" href="<?= URL_BASE ?>/meus-tokens">
+                <i class="fas fa-fw fa-list-alt"></i>
+                <span>Gerenciar Tokens</span></a>
+        </li>
+
+        <!-- Adição do novo link -->
+        <li class="nav-item">
+            <a class="nav-link" href="<?= URL_BASE ?>/reembolso" >
+                <i class="nav-icon fas fa-undo-alt"></i>
+                <span>Reembolso</span></a>
+        </li>
+
+        <!-- Divider -->
+        <hr class="sidebar-divider">
+
+        <div class="sidebar-heading">
+            Cadastros
+        </div>
+
+        <li class="nav-item">
+            <a class="nav-link" href="<?= URL_BASE ?>/pacientes/cadastrar">
+                <i class="fas fa-fw fa-user-injured"></i>
+                <span>Pacientes</span></a>
+        </li>
+
+        <!-- FIM BLOCO ADMINISTRATIVO -->
+
+        <!-- Nav Item - Meus Pacientes (Permitido para todos, inclusive nível 1) -->
+        <li class="nav-item">
+            <a class="nav-link" href="<?= defined('URL_BASE') ? URL_BASE : '' ?>/pacientes">
+                <i class="fas fa-fw fa-user-injured"></i>
+                <span>Meus Pacientes</span></a>
+        </li>
+
+
+    <?php endif; ?>
+
+
+    <!-- BLOCO RELATÓRIOS - APENAS ADMIN (NÍVEL > 1) -->
+
+    <!-- Divider -->
+    <?php if (Auth::level() >= 2): ?>
+        <hr class="sidebar-divider d-none d-md-block">
+        <div class="sidebar-heading">
+            Relatórios Gerais
+        </div>
+
+        <li class="nav-item">
+            <a class="nav-link" href="<?= URL_BASE ?>/relatorios">
+                <i class="fas fa-fw fa-chart-bar"></i>
+                <span>Relatórios Financeiros</span></a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link" href="<?= URL_BASE ?>/relatorios/quantitativo">
+                <i class="fas fa-fw fa-chart-pie"></i>
+                <span>Quantitativo</span></a>
+        </li>
+
+    <?php endif; ?>
+
+    <!-- Divider -->
+    <hr class="sidebar-divider d-none d-md-block">
+
+    <!-- Sidebar Toggler (Sidebar) -->
+    <div class="text-center d-none d-md-inline">
+        <button class="rounded-circle border-0" id="sidebarToggle"></button>
+    </div>
+
+</ul>
